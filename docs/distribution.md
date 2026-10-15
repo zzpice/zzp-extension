@@ -12,7 +12,7 @@
 
 ## 发布一个版本
 
-1. 增加 `package.json` 的稳定三段数字版本，更新 `docs/release-notes.md`，完成检查并提交 main。每个签名版本只用一次，失败重签或修复按 Mozilla 实际提交状态选择更高版本，不复用已签名号。
+1. 增加 `package.json` 的稳定三段数字版本，更新 `docs/release-notes.md`，完成检查并提交 main，等待 Linux、Mac、Windows 三项 CI 全部通过。每个签名版本只用一次，失败重签或修复按 Mozilla 实际提交状态选择更高版本，不复用已签名号。
 2. 手动运行 `Sign and distribute (unlisted)`，输入与 package.json 完全相同的版本。默认 `publish=false`：完成构建、签名和产物检查，只生成 Actions 产物。
 3. 需要分发时使用 `publish=true`。工作流固定 `--channel unlisted`，上传完整可重建源码到 Mozilla；拒绝无签名、ID/版本/清单与受测构建不一致的文件。比较已发布更新，拒绝同版本和降级。
 4. 工作流从**签名后**的 XPI 计算 SHA-256，先创建草稿 Release 并上传 XPI、清单、校验和与源码，全部成功后将 Release 发布并切为 latest。之前的 feed 与安装包一直保留。

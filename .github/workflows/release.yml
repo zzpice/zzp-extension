@@ -21,6 +21,7 @@ jobs:
     environment: extension-signing
     permissions:
       contents: write
+      checks: read
     env:
       GH_TOKEN: ${{ github.token }}
       RELEASE_VERSION: ${{ inputs.version }}
@@ -38,6 +39,11 @@ jobs:
           node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const p=JSON.parse(fs.readFileSync("package.json")); assert.equal(p.version,process.env.RELEASE_VERSION); assert.match(p.version,/^(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$/); assert(p.version.split(".").every(n=>+n<=65535)); assert.equal(process.env.GITHUB_REPOSITORY,"zzpice/zzp-extension");'
           test "$(gh repo view --json visibility --jq .visibility)" = PUBLIC
           test -z "$(git tag -l "v$RELEASE_VERSION")"
+      - name: Require Linux, Mac and Windows checks on this exact commit
+        run: |
+          mkdir -p artifacts
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/check-runs?filter=latest" > artifacts/check-runs.json
+          node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const checks=JSON.parse(fs.readFileSync("artifacts/check-runs.json")).check_runs; for(const os of ["ubuntu-latest","macos-latest","windows-latest"]) assert(checks.some(c=>c.name===`check (${os})`&&c.status==="completed"&&c.conclusion==="success"),`CI must pass for ${os} before signing`);'
       - run: pnpm install --frozen-lockfile
       - run: pnpm check
       - run: python3 -m unittest discover -s tests -p 'test_*.py'
