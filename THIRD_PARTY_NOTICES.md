@@ -1,7 +1,5 @@
-# 第三方资源
+# 资源说明
 
-Home 源码固定在 `vendor/home`，其原有依赖与资源说明见该目录的 THIRD_PARTY_NOTICES.md。扩展自己的代码不另行授予第三方品牌或图片版权。
+扩展身份使用的 `public/brand/icon-48.png` 与 `icon-96.png` 沿用 Zzp Home 品牌图。没有打包 Home 代码、站点图标、精灵图或 assets 目录。访问原站时，其资源继续由 Home 和 assets 原有来源与许可说明管理。
 
-站点图标不随扩展复制分发；按需读取 Home 固定提交对应的 assets 原始 PNG。逐项来源与许可由 [assets 原记录](https://github.com/zzpice/assets/blob/8876beff485e37cd3c5fed8e2eecea30495f20d4/icons/SOURCES.md) 和固定 Home 子模块中的资源声明维护，不保留另一份目录。品牌权利归各自权利人。扩展工具栏品牌图沿用 Home 现有品牌图。
-
-运行依赖 React、React DOM、React Router、Lucide 和 Radix Dialog 按各自开源许可使用；Zod 用于沿用 Home 数据校验。版本和传递依赖锁定在 pnpm-lock.yaml；没有运行时 CDN 脚本。
+构建工具 WXT、Vite、TypeScript 及 Mozilla web-ext 等依赖的版本与许可由 `pnpm-lock.yaml` 和各包原许可记录。安装包不包含运行时框架或 CDN 脚本。扩展代码不另行授予第三方品牌或图片版权。
