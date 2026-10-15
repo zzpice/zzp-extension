@@ -1,0 +1,94 @@
+name: Sign and distribute (unlisted)
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Must exactly match package.json; stable numeric version only
+        required: true
+      publish:
+        description: Publish the signed XPI and HTTPS update manifest to GitHub Releases
+        type: boolean
+        default: false
+permissions:
+  contents: read
+concurrency:
+  group: unlisted-release
+  cancel-in-progress: false
+jobs:
+  release:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: extension-signing
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: true
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: pnpm
+      - name: Validate version and distribution target
+        run: |
+          node --input-type=module -e 'import fs from "node:fs"; import assert from "node:assert/strict"; const p=JSON.parse(fs.readFileSync("package.json")); assert.equal(p.version,process.env.RELEASE_VERSION); assert.match(p.version,/^(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})\.(0|[1-9][0-9]{0,4})$/); assert(p.version.split(".").every(n=>+n<=65535)); assert.equal(process.env.GITHUB_REPOSITORY,"zzpice/zzp-extension");'
+          test "$(gh repo view --json visibility --jq .visibility)" = PUBLIC
+          test -z "$(git tag -l "v$RELEASE_VERSION")"
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm check
+      - run: python3 -m unittest discover -s tests -p 'test_*.py'
+      - run: pnpm lint:extension
+      - name: Read last published update (404 only is allowed for the first release)
+        run: |
+          mkdir -p artifacts
+          status=$(curl -sSL -w '%{http_code}' -o artifacts/previous.json https://github.com/zzpice/zzp-extension/releases/latest/download/updates.json)
+          if [ "$status" = 404 ]; then rm artifacts/previous.json; elif [ "$status" != 200 ]; then exit 1; fi
+      - name: Reject non-increasing version before submitting to Mozilla
+        run: |
+          python3 - <<'PYVERSION'
+          import importlib.util, json, os
+          from pathlib import Path
+          spec = importlib.util.spec_from_file_location("release", "scripts/prepare_release.py")
+          release = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(release)
+          version = release.version_parts(os.environ["RELEASE_VERSION"])
+          previous = Path("artifacts/previous.json")
+          if previous.exists():
+              config = json.loads(Path("release-config.json").read_text())
+              updates = json.loads(previous.read_text())["addons"][config["id"]]["updates"]
+              assert all(release.version_parts(item["version"]) < version for item in updates)
+          PYVERSION
+      - run: python3 scripts/package_source.py
+      - name: Sign through Mozilla unlisted channel
+        run: |
+          test -n "$WEB_EXT_API_KEY"
+          test -n "$WEB_EXT_API_SECRET"
+          pnpm exec web-ext sign --channel unlisted --source-dir .output/firefox-mv3 --artifacts-dir artifacts/signed --upload-source-code artifacts/source.zip --approval-timeout 1800000 --no-input --no-config-discovery
+        env:
+          WEB_EXT_API_KEY: ${{ secrets.AMO_JWT_ISSUER }}
+          WEB_EXT_API_SECRET: ${{ secrets.AMO_JWT_SECRET }}
+      - name: Validate exact signed package and prepare update
+        run: |
+          files=(artifacts/signed/*.xpi)
+          test "${#files[@]}" = 1
+          if [ -f artifacts/previous.json ]; then
+            python3 scripts/prepare_release.py "${files[0]}" --previous artifacts/previous.json
+          else
+            python3 scripts/prepare_release.py "${files[0]}"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: signed-firefox-${{ inputs.version }}
+          path: |
+            artifacts/release/
+            artifacts/source.zip
+          retention-days: 30
+      - name: Create draft release with all assets, then switch latest atomically
+        if: inputs.publish
+        run: |
+          gh release create "v$RELEASE_VERSION" --target "$GITHUB_SHA" --draft --title "Zzp Home $RELEASE_VERSION" --notes-file docs/release-notes.md artifacts/release/* artifacts/source.zip
+          gh release edit "v$RELEASE_VERSION" --draft=false --latest

@@ -1,0 +1,3 @@
+[submodule "vendor/home"]
+	path = vendor/home
+	url = https://github.com/zzpice/zzp-home.git

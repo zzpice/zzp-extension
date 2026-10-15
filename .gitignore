@@ -1,0 +1,7 @@
+node_modules/
+.wxt/
+.output/
+artifacts/
+.env*
+.DS_Store
+__pycache__/
