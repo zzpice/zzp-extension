@@ -30,7 +30,11 @@ const originalSearchHash =
   "984863ff71e146b9035cf0e65fa13b06871c43914cb91f69af2d702cc5e1ce21";
 assert.equal(
   createHash("sha256")
-    .update(await readFile("vendor/home/src/pages/SearchPage.tsx"))
+    .update(
+      (
+        await readFile("vendor/home/src/pages/SearchPage.tsx", "utf8")
+      ).replaceAll("\r\n", "\n"),
+    )
     .digest("hex"),
   originalSearchHash,
   "Keep the original Home search component unchanged",
