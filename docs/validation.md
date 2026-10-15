@@ -1,18 +1,12 @@
 # 验证记录
 
-2026-10-15，本地 Mac：
+2026-10-15，当前目标版本 0.1.2：
 
-- 扩展类型检查、搜索与待收藏单元测试通过。覆盖 Firefox 默认搜索、错误保留输入、键盘/指针选择、中文输入法、重复 URL、失败保留待收藏、严格 Home 来源。
-- 138 枚原始 PNG 均通过目录 SHA-256、512×512 与 RGBA 检查；安装包扫描通过，未携带私人网址、凭据、远程代码或 favicon/非官方联想请求。
-- Mozilla `web-ext lint` 无错误。保留 3 条经过定位的依赖提示：React DOM 的两个内部 __html 分支与 React Router 的框架模块动态导入。应用不使用这些入口；CSP 限制脚本为安装包内。脚本仅接受这些固定依赖位置，其他提示会失败。
-- Firefox 157.0.1 临时安装实际包，默认 Google 搜索成功在当前标签页打开；GitHub 匹配到公开收藏，键盘选中 bookmark-0，图标 naturalWidth/naturalHeight 为 512，离线重载可用。
-- 官方 Firefox 更新后的 158.0 独立配置文件原生烟雾测试通过：MV3 加载、browser.search.get、深色偏好重载、IME 不提交、离线界面。
-- Home：53 项单元测试通过，207 项产品测试中 206 首次通过；1 项 WebKit 离线搜索用例单独复测通过。新增草稿交接在 Chromium、Firefox、WebKit 均通过，验证表单输入进入原 IndexedDB 且不覆盖当前未应用输入。
-- Home 的公开资源扫描、响应式及无障碍检查通过，63 项 Worker 浏览器测试通过；草稿接入已通过 Wrangler 部署到 zzp.moe，公开 API 返回 200，未登录管理 API 返回 Access 跳转。
-- 发布结构测试覆盖签名标记、manifest 精确一致、签名后 SHA-256、拒绝相同/降低版本及无效版本。测试签名标记为结构夹具，不是可安装签名。
+- SearchPage 与扩展开发前的 Home 源文件 SHA-256 完全一致。构建审计固定验证这一点；未保留 Firefox 默认搜索、额外快捷键或指针选择增强。
+- 权限为 activeTab、storage 和 zzp.moe；已移除 search。安装包不含图标库、图集或独立目录，构建总体积由约 8.08 MB 降至 433.31 KB。
+- 四项待收藏单元测试和四项发布结构测试通过，覆盖 URL 校验、重复检测、失败保留、Home 来源、递增版本和签名后 hash。结构夹具不冒充密码学签名。
+- Mozilla lint 无错误；保留三条已定位的 React DOM / React Router 依赖提示，应用不使用这些入口，脚本执行受 CSP 限制。
+- 官方 Firefox 158.0 独立配置文件检查通过：原有搜索、MV3、主题保留、IME、离线界面。真实网络图标检查确认按需原图 naturalWidth/naturalHeight 为 512；离线使用浏览器缓存，清空 HTTP 图片缓存后显示文字。
+- Home 质量检查的 53 项单元测试通过；当前产品与 Worker 全套检查另行执行，云端部署后单独验证。
 
-Linux、Mac、Windows 的检查和原生 Firefox 烟雾测试均已通过：[扩展 CI](https://github.com/zzpice/zzp-extension/actions/runs/38683387002)。Home 的质量、产品和后端 CI 全部通过：[Home CI](https://github.com/zzpice/zzp-home/actions/runs/38682091953)。
-
-AMO 凭据已保存到 GitHub Actions Secrets，首个 unlisted 版本 0.1.0 的安装包和完整源码已被 Mozilla 接收，目前状态为「等待审核」：[签名工作流](https://github.com/zzpice/zzp-extension/actions/runs/38683223648)。0.1.0 用作后续跨版本验证，不自动公开分发。main 的 0.1.1 已准备好作为递增版本，但在 0.1.0 审核通过前不重复提交。
-
-正式签名、签名包安装和连续两版本原生升级尚未完成，不视为已验证；目前没有已发布的 GitHub Release 或下载版本。`Verify signed Firefox update` 工作流已实现，待真实签名产物返回后执行。
+已有 0.1.0 和 0.1.1 的真实 Mozilla unlisted 签名。含旧搜索增强的 0.1.1 已恢复为草稿，不作为当前下载版本。0.1.2 将重新签名，再以旧签名包验证 HTTPS 升级、错误 SHA-256 拒绝安装、旧版和待收藏及主题保留。跨版本验证完成前不记为通过。

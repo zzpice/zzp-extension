@@ -1,4 +1,3 @@
-import { firefoxSearch, extensionUrl } from "./firefox";
 import { useEffect, useState } from "react";
 import { Link, Route, Routes, useLocation } from "react-router";
 import {
@@ -10,23 +9,15 @@ import {
   LayoutDashboard,
 } from "lucide-react";
 import { browser } from "wxt/browser";
-import SearchPage, {
-  type SearchRuntime,
-} from "../vendor/home/src/pages/SearchPage";
-import { createNavigation } from "../vendor/home/src/features/navigation/navigation";
+import SearchPage from "../vendor/home/src/pages/SearchPage";
+import { navigation } from "../vendor/home/src/features/navigation/navigation";
 import { preferences } from "../vendor/home/src/features/settings/preferences";
 import { useDomain } from "../vendor/home/src/hooks/useDomain";
-import { installImeGuard, isImeKey } from "../vendor/home/src/lib/ime";
+import { installImeGuard } from "../vendor/home/src/lib/ime";
 import { SlidingSelection } from "../vendor/home/src/components/SlidingSelection";
 import { PreferenceCheckbox } from "../vendor/home/src/features/settings/PreferenceCheckbox";
 import { Modal } from "../vendor/home/src/components/Modal";
 import { pendingCaptures, HOME, type PendingCapture } from "./captures";
-import catalog from "../public/icon-catalog.json";
-const icons = new Set(catalog.icons.map((icon) => icon.path));
-const navigation = createNavigation({
-  apiUrl: HOME + "/api/v1/public/navigation",
-  seedUrl: extensionUrl("/navigation.json"),
-});
 function OnlineHome() {
   const location = useLocation();
   useEffect(() => {
@@ -45,7 +36,6 @@ export function NewTab() {
   const [settings, setSettings] = useState(false);
   const [pending, setPending] = useState<PendingCapture[]>([]);
   const [message, setMessage] = useState("");
-  const [defaultLabel, setDefaultLabel] = useState("Firefox 默认搜索");
   const location = useLocation();
   useEffect(() => {
     void navigation.load();
@@ -62,50 +52,14 @@ export function NewTab() {
     const media = matchMedia("(prefers-color-scheme: dark)");
     media.addEventListener("change", apply);
     const stopIme = installImeGuard();
-    const shortcut = (event: KeyboardEvent) => {
-      if (
-        !isImeKey(event) &&
-        (event.ctrlKey || event.metaKey) &&
-        event.key.toLowerCase() === "k" &&
-        !document.querySelector('[role="dialog"]')
-      ) {
-        event.preventDefault();
-        document.getElementById("global-search")?.focus();
-      }
-    };
-    addEventListener("keydown", shortcut);
     document.documentElement.dataset.ready = "true";
     return () => {
       stop();
       stopIme();
       media.removeEventListener("change", apply);
       browser.storage.onChanged.removeListener(refresh);
-      removeEventListener("keydown", shortcut);
     };
   }, []);
-  useEffect(() => {
-    const read = () => {
-      void firefoxSearch
-        .get()
-        .then((engines) => {
-          const engine = engines.find((engine) => engine.isDefault);
-          setDefaultLabel(
-            engine ? `Firefox 默认 · ${engine.name}` : "Firefox 默认搜索",
-          );
-        })
-        .catch(() => {});
-    };
-    read();
-    document.addEventListener("visibilitychange", read);
-    return () => document.removeEventListener("visibilitychange", read);
-  }, []);
-  const runtime: SearchRuntime = {
-    defaultLabel,
-    search: async (query) => {
-      await firefoxSearch.search({ query, disposition: "CURRENT_TAB" });
-    },
-    iconUrl: (path) => (icons.has(path) ? extensionUrl("/" + path) : null),
-  };
   const pages = [
     { url: "/", label: "搜索", Icon: Search },
     { url: HOME + "/nav/", label: "导航", Icon: Bookmark },
@@ -198,10 +152,7 @@ export function NewTab() {
             </p>
           )}
           <Routes>
-            <Route
-              path="/"
-              element={<SearchPage source={navigation} runtime={runtime} />}
-            />
+            <Route path="/" element={<SearchPage />} />
             <Route path="*" element={<OnlineHome />} />
           </Routes>
         </div>

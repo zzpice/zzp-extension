@@ -82,8 +82,9 @@ def main():
             script('document.querySelector(".skip-link").click()')
             assert command("/url") == extension_url
             assert script('return document.activeElement.id') == "main"
-            engines = command("/execute/async", {"script": "browser.search.get().then(e=>arguments[0](e.map(v=>({name:v.name,isDefault:v.isDefault}))))", "args": []})
-            assert any(engine["isDefault"] for engine in engines)
+            if not update_version:
+                assert script('return !browser.runtime.getManifest().permissions.includes("search")')
+                assert script('return !document.querySelector("option[value=browser-default]")')
             script('document.querySelector("button[aria-label=设置]").click()')
             for _ in range(100):
                 if script('return !!document.querySelector("[role=dialog]")'):
@@ -102,6 +103,7 @@ def main():
                 # This fixture exists only in the disposable test profile.
                 fixture = {"capture:00000000-0000-4000-8000-000000000001": {"capture": {"version": 1, "id": "00000000-0000-4000-8000-000000000001", "title": "Update preservation check", "url": "https://example.com/"}, "createdAt": "2026-10-15T00:00:00.000Z"}}
                 async_script("await browser.storage.local.set(" + json.dumps(fixture) + ");return true;")
+                command("/url", {"url": "about:blank"})
                 command("/moz/context", {"context": "chrome"})
                 # Exercise Firefox's native downloader with an intentionally wrong hash.
                 # Production feed and signed bytes remain untouched.
@@ -118,16 +120,44 @@ def main():
                     if script('return !!document.querySelector("#global-search")'):
                         break
                     time.sleep(0.1)
+                assert script('return !browser.runtime.getManifest().permissions.includes("search")')
+                assert script('return !document.querySelector("option[value=browser-default]")')
                 assert script('return document.documentElement.dataset.theme') == "dark"
                 assert async_script("return await browser.storage.local.get(" + json.dumps(list(fixture)) + ");") == fixture
                 print("Signed update passed:", initial["version"], "->", update_version, "HTTPS discovery, bad hash preserves old version, native Mozilla signature, theme and pending capture preserved")
+            def icon_result():
+                element = command("/element", {"using": "css selector", "value": "#global-search"})["element-6066-11e4-a52e-4f735466cecf"]
+                command("/element/" + element + "/value", {"text": "GitHub"})
+                for _ in range(150):
+                    state = script('const e=document.querySelector(".bookmark-result .site-icon");const i=e?.querySelector("img");return e?{src:i?.src||"",width:i?.naturalWidth||0,height:i?.naturalHeight||0,text:e.textContent.trim()}:null;')
+                    if state and (state["width"] or state["text"]):
+                        return state
+                    time.sleep(0.1)
+                raise AssertionError("No rendered icon or text fallback for the public GitHub bookmark")
+
+            verify_icons = os.environ.get("VERIFY_REMOTE_ICONS") == "1"
+            if verify_icons:
+                icon = icon_result()
+                revision = json.loads(Path("vendor/home/data/zzp-home-icons.json").read_text())["revision"]
+                assert icon["src"].startswith("https://raw.githubusercontent.com/zzpice/assets/" + revision + "/icons/"), icon
+                assert (icon["width"], icon["height"]) == (512, 512), icon
             command("/moz/context", {"context": "chrome"})
             script("Services.io.offline=true")
             command("/moz/context", {"context": "content"})
             command("/refresh", {})
             assert script('return !!document.querySelector("#global-search")')
+            if verify_icons:
+                cached = icon_result()
+                assert cached["width"] == 512 or cached["text"], cached
+                command("/moz/context", {"context": "chrome"})
+                script("Services.cache2.clear()")
+                command("/moz/context", {"context": "content"})
+                command("/refresh", {})
+                fallback = icon_result()
+                assert not fallback["src"] and fallback["text"], fallback
+                print("Original icon checks passed: on-demand 512px PNG, browser cache offline, text fallback without image cache")
             (output / "firefox-smoke.png").write_bytes(base64.b64decode(command("/screenshot")))
-            print("Native Firefox smoke passed:", capabilities["capabilities"]["browserVersion"], "MV3 load, native search API, theme persistence, IME, offline shell")
+            print("Native Firefox smoke passed:", capabilities["capabilities"]["browserVersion"], "MV3 load, original Home search, theme persistence, IME, offline shell")
         finally:
             if session:
                 try:

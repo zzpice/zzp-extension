@@ -10,11 +10,7 @@ assert.equal(
   manifest.browser_specific_settings.gecko.update_url,
   release.updateUrl,
 );
-assert.deepEqual([...manifest.permissions].sort(), [
-  "activeTab",
-  "search",
-  "storage",
-]);
+assert.deepEqual([...manifest.permissions].sort(), ["activeTab", "storage"]);
 assert.deepEqual(manifest.host_permissions, ["https://zzp.moe/*"]);
 assert.equal(manifest.chrome_url_overrides.newtab, "newtab.html");
 assert.deepEqual(manifest.content_scripts[0].matches, [
@@ -25,14 +21,20 @@ assert(
   !manifest.web_accessible_resources?.length,
   "No remotely callable extension resources",
 );
-const catalog = JSON.parse(await readFile(root + "/icon-catalog.json", "utf8"));
-for (const icon of catalog.icons) {
-  const png = await readFile(root + "/" + icon.path);
-  assert.equal(createHash("sha256").update(png).digest("hex"), icon.sha256);
-  assert.equal(png.readUInt32BE(16), 512);
-  assert.equal(png.readUInt32BE(20), 512);
-  assert.equal(png[25], 6);
-}
+for (const file of ["icons", "icon-catalog.json", "zzp-home-icons.png"])
+  assert(
+    !(await readdir(root)).includes(file),
+    "Do not bundle the assets icon library or catalog",
+  );
+const originalSearchHash =
+  "984863ff71e146b9035cf0e65fa13b06871c43914cb91f69af2d702cc5e1ce21";
+assert.equal(
+  createHash("sha256")
+    .update(await readFile("vendor/home/src/pages/SearchPage.tsx"))
+    .digest("hex"),
+  originalSearchHash,
+  "Keep the original Home search component unchanged",
+);
 assert.deepEqual(
   JSON.parse(await readFile(root + "/navigation.json", "utf8")).groups,
   [],
@@ -74,5 +76,5 @@ async function scan(dir) {
 }
 await scan(root);
 console.log(
-  `Package audit passed: minimal permissions, no private URLs or secrets, ${catalog.icons.length} original PNGs.`,
+  `Package audit passed: minimal permissions, no private URLs or secrets, original Home search, on-demand original icons.`,
 );
