@@ -11,4 +11,8 @@
 - Home 的公开资源扫描、响应式及无障碍检查通过，63 项 Worker 浏览器测试通过；草稿接入已通过 Wrangler 部署到 zzp.moe，公开 API 返回 200，未登录管理 API 返回 Access 跳转。
 - 发布结构测试覆盖签名标记、manifest 精确一致、签名后 SHA-256、拒绝相同/降低版本及无效版本。测试签名标记为结构夹具，不是可安装签名。
 
-CI 额外在 Linux、Mac、Windows 执行检查和原生 Firefox 烟雾测试，实际结果以对应提交的 Actions 为准。Mozilla 正式签名与连续两版本原生自动升级需要 AMO 凭据和已签名版本，未执行前不视为已验证。
+Linux、Mac、Windows 的检查和原生 Firefox 烟雾测试均已通过：[扩展 CI](https://github.com/zzpice/zzp-extension/actions/runs/38683387002)。Home 的质量、产品和后端 CI 全部通过：[Home CI](https://github.com/zzpice/zzp-home/actions/runs/38682091953)。
+
+AMO 凭据已保存到 GitHub Actions Secrets，首个 unlisted 版本 0.1.0 的安装包和完整源码已被 Mozilla 接收，目前状态为「等待审核」：[签名工作流](https://github.com/zzpice/zzp-extension/actions/runs/38683223648)。0.1.0 用作后续跨版本验证，不自动公开分发。main 的 0.1.1 已准备好作为递增版本，但在 0.1.0 审核通过前不重复提交。
+
+正式签名、签名包安装和连续两版本原生升级尚未完成，不视为已验证；目前没有已发布的 GitHub Release 或下载版本。`Verify signed Firefox update` 工作流已实现，待真实签名产物返回后执行。
