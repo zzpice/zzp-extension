@@ -1,0 +1,67 @@
+name: Verify signed Firefox update
+on:
+  workflow_dispatch:
+    inputs:
+      previous_run:
+        description: Successful signing workflow run containing the older signed XPI
+        required: true
+      previous_version:
+        description: Version in that signed artifact
+        required: true
+      expected_version:
+        description: Version currently served by the production HTTPS update manifest
+        required: true
+permissions:
+  contents: read
+  actions: read
+jobs:
+  update:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PREVIOUS_RUN: ${{ inputs.previous_run }}
+      PREVIOUS_VERSION: ${{ inputs.previous_version }}
+      EXPECTED_UPDATE_VERSION: ${{ inputs.expected_version }}
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Validate versions and retrieve the older signed artifact
+        run: |
+          python - <<'PY'
+          import importlib.util, os
+          spec = importlib.util.spec_from_file_location("release", "scripts/prepare_release.py")
+          release = importlib.util.module_from_spec(spec)
+          spec.loader.exec_module(release)
+          assert os.environ["PREVIOUS_RUN"].isdigit()
+          assert release.version_parts(os.environ["PREVIOUS_VERSION"]) < release.version_parts(os.environ["EXPECTED_UPDATE_VERSION"])
+          PY
+          gh run download "$PREVIOUS_RUN" --repo "$GITHUB_REPOSITORY" --name "signed-firefox-$PREVIOUS_VERSION" --dir artifacts/previous
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          files = list(Path("artifacts/previous").rglob("zzp-home-" + os.environ["PREVIOUS_VERSION"] + ".xpi"))
+          assert len(files) == 1
+          with open(os.environ["GITHUB_ENV"], "a") as output:
+              output.write("SIGNED_XPI=" + files[0].resolve().as_posix() + "\n")
+          PY
+      - uses: browser-actions/setup-firefox@0bc507ddf224827e3b1af68e014d5e42ab93e795 # v1.7.2
+        id: firefox
+      - uses: browser-actions/setup-geckodriver@fac5b0424c584257f32cf12c5eb4ba86014c34f8
+        with:
+          geckodriver-version: 0.37.1
+          token: ${{ github.token }}
+      - run: python scripts/test_firefox.py
+        env:
+          FIREFOX_BINARY: ${{ steps.firefox.outputs.firefox-path }}
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: signed-update-${{ matrix.os }}
+          path: artifacts/geckodriver.log
+          retention-days: 7
