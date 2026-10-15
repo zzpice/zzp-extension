@@ -63,6 +63,9 @@ def main():
             assert script('return document.title') == "搜索 · Zzp"
             assert script('return document.querySelector("#global-search").value') == ""
             assert script('return document.activeElement.id') != "global-search", "Do not take focus from Firefox's address bar"
+            script('document.querySelector(".skip-link").click()')
+            assert command("/url") == extension_url
+            assert script('return document.activeElement.id') == "main"
             engines = command("/execute/async", {"script": "browser.search.get().then(e=>arguments[0](e.map(v=>({name:v.name,isDefault:v.isDefault}))))", "args": []})
             assert any(engine["isDefault"] for engine in engines)
             script('document.querySelector("button[aria-label=设置]").click()')

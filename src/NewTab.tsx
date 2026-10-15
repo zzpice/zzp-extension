@@ -135,7 +135,18 @@ export function NewTab() {
   };
   return (
     <>
-      <a className="skip-link" href="#main">
+      <a
+        className="skip-link"
+        href="#main"
+        onClick={(event) => {
+          event.preventDefault();
+          const main = document.getElementById("main");
+          if (main) {
+            main.tabIndex = -1;
+            main.focus();
+          }
+        }}
+      >
         跳到主要内容
       </a>
       <div className="app-layout search-layout">
